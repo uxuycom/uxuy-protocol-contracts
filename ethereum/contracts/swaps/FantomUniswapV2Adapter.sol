@@ -1,34 +1,34 @@
 //SPDX-License-Identifier: UXUY
 pragma solidity ^0.8.11;
 
-import "../interfaces/swaps/uniswap/v2/IUniswapV2Router.sol";
+import "../interfaces/swaps/uniswap/v2/IFantomUniswapV2Router.sol";
 import "../libraries/SwapAdapterBase.sol";
 import "../libraries/SafeNativeAsset.sol";
 import "../libraries/SafeERC20.sol";
 
-contract UniswapV2SwapAdapter is SwapAdapterBase {
+contract FantomUniswapV2Adapter is SwapAdapterBase {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
     uint256 internal constant UNEXPIRED = type(uint256).max;
 
-    IUniswapV2Router private immutable _router;
+    IFantomUniswapV2Router private immutable _router;
 
     constructor(address router) {
-        _router = IUniswapV2Router(router);
-        _setWrappedNativeAsset(_router.WETH());
+        _router = IFantomUniswapV2Router(router);
+        _setWrappedNativeAsset(_router.WFTM());
     }
 
     function getAmountInView(
         address[] memory path,
         uint256 amountOut
     ) public view override returns (uint256 amountIn, bytes memory swapData) {
-        require(path.length >= 2, "UniswapV2SwapAdapter: invalid path");
-        require(amountOut > 0, "UniswapV2SwapAdapter: request amount must be greater than 0");
+        require(path.length >= 2, "FantomUniswapV2Adapter: invalid path");
+        require(amountOut > 0, "FantomUniswapV2Adapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
         try _router.getAmountsIn(amountOut, path) returns (uint256[] memory v) {
-            require(v.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
+            require(v.length >= 2, "FantomUniswapV2Adapter: invalid amounts");
             amountIn = v[0];
         } catch {
             amountIn = 0;
@@ -39,12 +39,12 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
         address[] memory path,
         uint256 amountIn
     ) public view override returns (uint256 amountOut, bytes memory swapData) {
-        require(path.length >= 2, "UniswapV2SwapAdapter: invalid path");
-        require(amountIn > 0, "UniswapV2SwapAdapter: request amount must be greater than 0");
+        require(path.length >= 2, "FantomUniswapV2Adapter: invalid path");
+        require(amountIn > 0, "FantomUniswapV2Adapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
         try _router.getAmountsOut(amountIn, path) returns (uint256[] memory v) {
-            require(v.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
+            require(v.length >= 2, "FantomUniswapV2Adapter: invalid amounts");
             amountOut = v[v.length - 1];
         } catch {
             amountOut = 0;
@@ -56,11 +56,11 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
     ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         address tokenIn = params.path[0];
         if (tokenIn.isNativeAsset()) {
-            amountOut = _swapExactETHForTokens(params.path, params.recipient, params.amountIn, params.minAmountOut);
+            amountOut = _swapExactFTMForTokens(params.path, params.recipient, params.amountIn, params.minAmountOut);
         } else {
             IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
             uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
-            require(balanceBefore > (params.amountIn * 95) / 100, "UniswapV2SwapAdapter: not enough balance");
+            require(balanceBefore > (params.amountIn * 95) / 100, "FantomUniswapV2Adapter: not enough balance");
             if (balanceBefore < params.amountIn) {
                 amountOut = _swapExactTokensForOthersSupportingFeeOnTransferTokens(
                     params.path,
@@ -79,21 +79,21 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
         }
     }
 
-    function _swapExactETHForTokens(
+    function _swapExactFTMForTokens(
         address[] memory path,
         address recipient,
         uint256 amountIn,
         uint256 minAmountOut
     ) internal returns (uint256 amountOut) {
-        require(address(this).balance >= amountIn, "UniswapV2SwapAdapter: not enough native assets in transaction");
+        require(address(this).balance >= amountIn, "FantomUniswapV2Adapter: not enough native assets in transaction");
         path[0] = WrappedNativeAsset();
-        try _router.swapExactETHForTokens{value: amountIn}(minAmountOut, path, recipient, UNEXPIRED) returns (
+        try _router.swapExactFTMForTokens{value: amountIn}(minAmountOut, path, recipient, UNEXPIRED) returns (
             uint256[] memory amounts
         ) {
-            require(amounts.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
+            require(amounts.length >= 2, "FantomUniswapV2Adapter: invalid amounts");
             amountOut = amounts[amounts.length - 1];
         } catch {
-            _router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amountIn}(
+            _router.swapExactFTMForTokensSupportingFeeOnTransferTokens{value: amountIn}(
                 minAmountOut,
                 path,
                 recipient,
@@ -112,13 +112,13 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
         address tokenOut = path[path.length - 1];
         if (tokenOut.isNativeAsset()) {
             path[path.length - 1] = WrappedNativeAsset();
-            try _router.swapExactTokensForETH(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
+            try _router.swapExactTokensForFTM(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
                 uint256[] memory amounts
             ) {
-                require(amounts.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
+                require(amounts.length >= 2, "FantomUniswapV2Adapter: invalid amounts");
                 amountOut = amounts[amounts.length - 1];
             } catch {
-                _router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                _router.swapExactTokensForFTMSupportingFeeOnTransferTokens(
                     amountIn,
                     minAmountOut,
                     path,
@@ -132,7 +132,7 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
             try _router.swapExactTokensForTokens(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
                 uint256[] memory amounts
             ) {
-                require(amounts.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
+                require(amounts.length >= 2, "FantomUniswapV2Adapter: invalid amounts");
                 amountOut = amounts[amounts.length - 1];
             } catch {
                 _router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -156,7 +156,7 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
         address tokenOut = path[path.length - 1];
         if (tokenOut.isNativeAsset()) {
             path[path.length - 1] = WrappedNativeAsset();
-            _router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            _router.swapExactTokensForFTMSupportingFeeOnTransferTokens(
                 amountIn,
                 minAmountOut,
                 path,

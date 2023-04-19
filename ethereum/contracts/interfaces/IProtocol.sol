@@ -5,32 +5,32 @@ interface IProtocol {
     struct SwapParams {
         bytes4 providerID;
         address[] path;
-        uint minAmountOut;
+        uint256 minAmountOut;
         bytes data;
     }
 
     struct BridgeParams {
         bytes4 providerID;
         address tokenIn;
-        uint chainIDOut;
+        uint256 chainIDOut;
         address tokenOut;
-        uint minAmountOut;
+        uint256 minAmountOut;
         bytes data;
     }
 
     struct TradeParams {
-        uint amountIn;
+        uint256 amountIn;
         SwapParams[] swaps;
         BridgeParams bridge;
         address recipient;
         address feeShareRecipient;
-        uint extraFeeAmountIn; // Extra fee deducted to pay the gas fee
+        uint256 extraFeeAmountIn; // Extra fee deducted to pay the gas fee
         SwapParams[] extraFeeSwaps;
-        uint deadline;
+        uint256 deadline;
     }
 
-    // @dev Emitted when fee rate is updated by owner
-    event FeeRateChanged(uint feeRate, uint feeShareRate);
+    // @dev Emitted when fee rate is updated
+    event FeeRateChanged(uint256 feeRate, uint256 feeShareRate);
 
     // @dev Emitted when trade is executed
     event Traded(
@@ -38,15 +38,15 @@ interface IProtocol {
         address indexed recipient,
         address indexed feeShareRecipient,
         address tokenIn,
-        uint amountIn,
-        uint chainIDOut,
+        uint256 amountIn,
+        uint256 chainIDOut,
         address tokenOut,
-        uint amountOut,
-        uint bridgeTxnID,
+        uint256 amountOut,
+        uint256 bridgeTxnID,
         address feeToken,
-        uint amountFee,
-        uint amountFeeShare,
-        uint amountExtraFee
+        uint256 amountFee,
+        uint256 amountFeeShare,
+        uint256 amountExtraFee
     );
 
     // @dev gets the swap contract
@@ -56,14 +56,14 @@ interface IProtocol {
     function bridgeContract() external view returns (address);
 
     // @dev gets the fee denominator
-    function feeDenominator() external pure returns (uint);
+    function feeDenominator() external pure returns (uint256);
 
     // @dev gets the total fee rate
-    function feeRate() external view returns (uint);
+    function feeRate() external view returns (uint256);
 
     // @dev gets the fee share rate
-    function feeShareRate() external view returns (uint);
+    function feeShareRate() external view returns (uint256);
 
     // @dev trade between tokens
-    function trade(TradeParams calldata params) external payable returns (uint amountOut, uint bridgeTxnID);
+    function trade(TradeParams calldata params) external payable returns (uint256 amountOut, uint256 bridgeTxnID);
 }

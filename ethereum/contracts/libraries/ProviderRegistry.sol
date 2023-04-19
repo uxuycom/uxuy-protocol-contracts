@@ -12,9 +12,9 @@ abstract contract ProviderRegistry is IProviderRegistry, Ownable {
         _setProvider(id, provider);
     }
 
-    function setProviders(bytes4[] memory ids, address[] memory providers) external override onlyOwner {
+    function setProviders(bytes4[] calldata ids, address[] calldata providers) external override onlyOwner {
         require(ids.length == providers.length, "ProviderRegistry: ids and providers length mismatch");
-        for (uint i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < ids.length; i++) {
             _setProvider(ids[i], providers[i]);
         }
     }
@@ -31,14 +31,14 @@ abstract contract ProviderRegistry is IProviderRegistry, Ownable {
         _removeProvider(id);
     }
 
-    function removeProviders(bytes4[] memory ids) external override onlyOwner {
-        for (uint i = 0; i < ids.length; i++) {
+    function removeProviders(bytes4[] calldata ids) external override onlyOwner {
+        for (uint256 i = 0; i < ids.length; i++) {
             _removeProvider(ids[i]);
         }
     }
 
     function _removeProvider(bytes4 id) internal {
-        for (uint i = 0; i < _allProviderIDs.length; i++) {
+        for (uint256 i = 0; i < _allProviderIDs.length; i++) {
             if (_allProviderIDs[i] == id) {
                 _allProviderIDs[i] = _allProviderIDs[_allProviderIDs.length - 1];
                 _allProviderIDs.pop();
@@ -56,7 +56,7 @@ abstract contract ProviderRegistry is IProviderRegistry, Ownable {
     function getProviders() external view override returns (bytes4[] memory ids, address[] memory providers) {
         ids = _allProviderIDs;
         providers = new address[](ids.length);
-        for (uint i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < ids.length; i++) {
             providers[i] = _providers[ids[i]];
         }
     }

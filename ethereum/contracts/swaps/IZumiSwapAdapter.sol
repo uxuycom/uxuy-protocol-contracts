@@ -27,16 +27,16 @@ contract IZumiSwapAdapter is SwapAdapterBase {
 
     function getAmountOut(
         address[] memory path,
-        uint amountIn
-    ) external override returns (uint amountOut, bytes memory swapData) {
+        uint256 amountIn
+    ) external override returns (uint256 amountOut, bytes memory swapData) {
         _convertPath(path);
         uint24[] memory bestFees = new uint24[](path.length - 1);
         address tokenIn = path[0];
-        for (uint i = 1; i < path.length; i++) {
+        for (uint256 i = 1; i < path.length; i++) {
             uint24 bestFee = 0;
             address tokenOut = path[i];
             amountOut = 0;
-            for (uint j = 0; j < _feeRates.length; j++) {
+            for (uint256 j = 0; j < _feeRates.length; j++) {
                 try _quoter.swapAmount(uint128(amountIn), abi.encodePacked(tokenIn, _feeRates[j], tokenOut)) returns (
                     uint256 amount,
                     int24[] memory
@@ -59,7 +59,7 @@ contract IZumiSwapAdapter is SwapAdapterBase {
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint amountOut) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         uint24[] memory poolFee = abi.decode(params.data, (uint24[]));
         require(params.path.length >= 2 && params.path.length == poolFee.length + 1);
         address tokenIn = params.path[0];
@@ -73,7 +73,7 @@ contract IZumiSwapAdapter is SwapAdapterBase {
                 recipient: params.recipient,
                 amount: uint128(params.amountIn),
                 minAcquired: params.minAmountOut,
-                deadline: type(uint).max
+                deadline: type(uint256).max
             })
         );
     }

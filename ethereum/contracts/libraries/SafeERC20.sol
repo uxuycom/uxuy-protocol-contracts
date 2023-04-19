@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.8.0) (token/ERC20/utils/SafeERC20.sol)
+// Modified by UXUY
 
 pragma solidity ^0.8.0;
 
@@ -18,11 +19,25 @@ import "./Address.sol";
 library SafeERC20 {
     using Address for address;
 
+    address internal constant TRON_USDT_ADDRESS = address(0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C);
+
     function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        require(to != address(0), "SafeERC20: transfer to the zero address");
         _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
     }
 
+    function safeTransferTron(IERC20 token, address to, uint256 value) internal {
+        require(to != address(0), "SafeERC20: transfer to the zero address");
+        if (address(token) == TRON_USDT_ADDRESS) {
+            // For USDT on Tron, transfer method always returns false, so _callOptionalReturn can not be used.
+            token.transfer(to, value);
+        } else {
+            _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+        }
+    }
+
     function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        require(to != address(0), "SafeERC20: transfer to the zero address");
         _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
     }
 
@@ -44,11 +59,16 @@ library SafeERC20 {
         _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
     }
 
-    function safeApproveToMax(IERC20 token, address spender, uint value) internal {
+    function safeApproveToMax(IERC20 token, address spender, uint256 value) internal {
         uint256 allowance = token.allowance(address(this), spender);
-        if (allowance < value) {
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, type(uint).max));
+        if (allowance >= value) {
+            return;
         }
+        // For ERC-20 that has safe approve check, set approval to 0 before approve to max
+        if (allowance > 0) {
+            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, 0));
+        }
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, type(uint256).max));
     }
 
     function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {

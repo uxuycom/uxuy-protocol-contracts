@@ -17,7 +17,7 @@ contract AnySwapBridgeAdapter is BridgeAdapterBase {
 
     function bridge(
         BridgeParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint, uint) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         (address router, address anyToken, address tokenAddr) = abi.decode(params.data, (address, address, address));
         address tokenIn = params.tokenIn;
         if (tokenIn.isNativeAsset()) {

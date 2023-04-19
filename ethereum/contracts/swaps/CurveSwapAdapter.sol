@@ -23,11 +23,11 @@ contract CurveSwapAdapter is SwapAdapterBase {
 
     function getAmountOutView(
         address[] memory path,
-        uint amountIn
-    ) public view override returns (uint amountOut, bytes memory swapData) {
+        uint256 amountIn
+    ) public view override returns (uint256 amountOut, bytes memory swapData) {
         swapData = "";
         _convertPath(path);
-        try _curve.get_best_rate(path[0], path[path.length - 1], amountIn) returns (address pool, uint amount) {
+        try _curve.get_best_rate(path[0], path[path.length - 1], amountIn) returns (address pool, uint256 amount) {
             amountOut = amount;
             swapData = abi.encode(pool);
         } catch {
@@ -37,11 +37,11 @@ contract CurveSwapAdapter is SwapAdapterBase {
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint amountOut) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
         address pool = abi.decode(params.data, (address));
         address tokenIn = params.path[0];
         address tokenOut = params.path[params.path.length - 1];
-        uint value = 0;
+        uint256 value = 0;
         if (tokenIn.isNativeAsset()) {
             tokenIn = WrappedNativeAsset();
             value = params.amountIn;
@@ -61,7 +61,7 @@ contract CurveSwapAdapter is SwapAdapterBase {
                 params.minAmountOut,
                 params.recipient
             )
-        returns (uint amount) {
+        returns (uint256 amount) {
             amountOut = amount;
         } catch {
             if (tokenIn != _wrappedNativeAsset) {
@@ -85,7 +85,7 @@ contract CurveSwapAdapter is SwapAdapterBase {
     ) internal returns (int128 indexIn, int128 indexOut) {
         indexIn = -1;
         indexOut = -1;
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             try ICurvePool(pool).coins(i) returns (address token) {
                 if (token == tokenIn) {
                     indexIn = int128(uint128(i));

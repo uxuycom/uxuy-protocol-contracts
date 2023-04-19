@@ -6,11 +6,11 @@ interface IProviderRegistry {
 
     function setProvider(bytes4 id, address provider) external;
 
-    function setProviders(bytes4[] memory ids, address[] memory providers) external;
+    function setProviders(bytes4[] calldata ids, address[] calldata providers) external;
 
     function removeProvider(bytes4 id) external;
 
-    function removeProviders(bytes4[] memory ids) external;
+    function removeProviders(bytes4[] calldata ids) external;
 
     function getProvider(bytes4 id) external view returns (address provider);
 

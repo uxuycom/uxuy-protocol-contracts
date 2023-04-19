@@ -14,6 +14,7 @@ library SafeNativeAsset {
     }
 
     function safeTransfer(address recipient, uint256 amount) internal {
+        require(recipient != address(0), "SafeNativeAsset: transfer to the zero address");
         (bool success, ) = recipient.call{value: amount}(new bytes(0));
         require(success, "SafeNativeAsset: safe transfer native assets failed");
     }

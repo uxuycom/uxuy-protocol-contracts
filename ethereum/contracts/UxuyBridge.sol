@@ -12,7 +12,7 @@ contract UxuyBridge is IBridge, BrokerBase {
 
     function bridge(
         BridgeParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint, uint) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         return
             _getAdapter(params.providerID).bridge(
                 IBridgeAdapter.BridgeParams({

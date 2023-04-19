@@ -35,7 +35,7 @@ contract ConnexBridgeAdapter is BridgeAdapterBase {
 
     function _setUnwrappers(uint32[] memory chains, address[] memory addresses) internal {
         require(chains.length == addresses.length, "ConnexBridgeAdapter: chains and addresses length mismatch");
-        for (uint i = 0; i < chains.length; i++) {
+        for (uint256 i = 0; i < chains.length; i++) {
             _unwrapperAddresses[chains[i]] = addresses[i];
         }
     }
@@ -50,10 +50,10 @@ contract ConnexBridgeAdapter is BridgeAdapterBase {
 
     function bridge(
         BridgeParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint, uint) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         address tokenIn = params.tokenIn;
-        uint amountIn = params.amountIn;
-        uint relayerFee = abi.decode(params.data, (uint));
+        uint256 amountIn = params.amountIn;
+        uint256 relayerFee = abi.decode(params.data, (uint256));
         if (tokenIn.isNativeAsset()) {
             require(amountIn >= relayerFee, "ConnexBridgeAdapter: insufficient native asset for relayer fee");
             tokenIn = _wrapperAddress;
@@ -64,7 +64,7 @@ contract ConnexBridgeAdapter is BridgeAdapterBase {
         }
         IERC20(tokenIn).safeApproveToMax(address(_connext), amountIn);
         require(amountIn >= params.minAmountOut, "ConnexBridgeAdapter: insufficient amount in");
-        uint slippage = ((amountIn - params.minAmountOut) * 10000) / amountIn;
+        uint256 slippage = ((amountIn - params.minAmountOut) * 10000) / amountIn;
         address toAddress;
         bytes memory data;
         if (params.tokenOut.isNativeAsset()) {
@@ -83,6 +83,6 @@ contract ConnexBridgeAdapter is BridgeAdapterBase {
             slippage,
             data
         );
-        return (0, uint(txnID));
+        return (0, uint256(txnID));
     }
 }

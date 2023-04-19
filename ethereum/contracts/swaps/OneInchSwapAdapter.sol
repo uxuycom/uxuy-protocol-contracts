@@ -19,15 +19,7 @@ contract OneInchSwapAdapter is SwapAdapterBase {
 
     function swap(
         SwapParams calldata params
-    )
-        external
-        payable
-        whenNotPaused
-        onlyAllowedCaller
-        noDelegateCall
-        refundUnused(params.path[0])
-        returns (uint amountOut)
-    {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
         if (!params.path[0].isNativeAsset()) {
             IERC20(params.path[0]).safeApproveToMax(address(_aggregator), params.amountIn);
         }
@@ -37,6 +29,6 @@ contract OneInchSwapAdapter is SwapAdapterBase {
         if (!success) {
             revert("OneInchSwapAdapter: call 1inch failed");
         }
-        (amountOut, ) = abi.decode(result, (uint, uint));
+        (amountOut, ) = abi.decode(result, (uint256, uint256));
     }
 }

@@ -22,15 +22,7 @@ contract XYBridgeAdapter is BridgeAdapterBase {
 
     function bridge(
         BridgeParams calldata params
-    )
-        external
-        payable
-        whenNotPaused
-        onlyAllowedCaller
-        noDelegateCall
-        refundUnused(params.tokenIn)
-        returns (uint, uint)
-    {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         bool success;
         bytes memory data;
         if (!params.tokenIn.isNativeAsset()) {

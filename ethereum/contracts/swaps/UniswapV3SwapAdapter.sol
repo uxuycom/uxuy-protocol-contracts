@@ -26,20 +26,20 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
 
     function getAmountIn(
         address[] memory path,
-        uint amountOut
-    ) external override returns (uint amountIn, bytes memory swapData) {
+        uint256 amountOut
+    ) external override returns (uint256 amountIn, bytes memory swapData) {
         _convertPath(path);
         uint24[] memory bestFees = new uint24[](path.length - 1);
         address tokenOut = path[path.length - 1];
-        for (uint i = path.length - 2; i >= 0; i--) {
+        for (uint256 i = path.length - 2; i >= 0; i--) {
             uint24 bestFee = 0;
             address tokenIn = path[i];
             amountIn = 0;
-            for (uint j = 0; j < _feeRates.length; j++) {
+            for (uint256 j = 0; j < _feeRates.length; j++) {
                 try _quoter.quoteExactOutputSingle(tokenIn, tokenOut, _feeRates[j], amountOut, 0) returns (
                     uint256 amount
                 ) {
-                    if (amount > 0 && amount < amountIn) {
+                    if (amount > 0 && (amountIn == 0 || amount < amountIn)) {
                         amountIn = amount;
                         bestFee = _feeRates[j];
                     }
@@ -57,16 +57,16 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
 
     function getAmountOut(
         address[] memory path,
-        uint amountIn
-    ) external override returns (uint amountOut, bytes memory swapData) {
+        uint256 amountIn
+    ) external override returns (uint256 amountOut, bytes memory swapData) {
         _convertPath(path);
         uint24[] memory bestFees = new uint24[](path.length - 1);
         address tokenIn = path[0];
-        for (uint i = 1; i < path.length; i++) {
+        for (uint256 i = 1; i < path.length; i++) {
             uint24 bestFee = 0;
             address tokenOut = path[i];
             amountOut = 0;
-            for (uint j = 0; j < _feeRates.length; j++) {
+            for (uint256 j = 0; j < _feeRates.length; j++) {
                 try _quoter.quoteExactInputSingle(tokenIn, tokenOut, _feeRates[j], amountIn, 0) returns (
                     uint256 amount
                 ) {
@@ -88,13 +88,13 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint amountOut) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         uint24[] memory poolFee = abi.decode(params.data, (uint24[]));
         require(params.path.length == poolFee.length + 1, "UniswapV3SwapAdapter: fee does not match path");
         address tokenIn = params.path[0];
         address tokenOut = params.path[params.path.length - 1];
 
-        uint value = 0;
+        uint256 value = 0;
         if (tokenIn.isNativeAsset()) {
             value = params.amountIn;
         } else {
@@ -113,7 +113,7 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
                     tokenOut: swapPath[1],
                     fee: poolFee[0],
                     recipient: recipient,
-                    deadline: type(uint).max,
+                    deadline: type(uint256).max,
                     amountIn: params.amountIn,
                     amountOutMinimum: params.minAmountOut,
                     sqrtPriceLimitX96: 0
@@ -124,7 +124,7 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
                 ISwapRouter.ExactInputParams({
                     path: swapPath.buildPath(poolFee),
                     recipient: recipient,
-                    deadline: type(uint).max,
+                    deadline: type(uint256).max,
                     amountIn: params.amountIn,
                     amountOutMinimum: params.minAmountOut
                 })

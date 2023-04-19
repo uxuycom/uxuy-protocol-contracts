@@ -14,41 +14,41 @@ contract UxuySwap is ISwap, BrokerBase {
     function getAmountIn(
         bytes4 providerID,
         address[] memory path,
-        uint amountOut
-    ) external override returns (uint, bytes memory) {
+        uint256 amountOut
+    ) external override returns (uint256, bytes memory) {
         return _getAdapter(providerID).getAmountIn(path, amountOut);
     }
 
     function getAmountOut(
         bytes4 providerID,
         address[] memory path,
-        uint amountIn
-    ) external override returns (uint, bytes memory) {
+        uint256 amountIn
+    ) external override returns (uint256, bytes memory) {
         return _getAdapter(providerID).getAmountOut(path, amountIn);
     }
 
     function getAmountInView(
         bytes4 providerID,
         address[] memory path,
-        uint amountOut
-    ) public view override returns (uint amountIn, bytes memory swapData) {
+        uint256 amountOut
+    ) public view override returns (uint256 amountIn, bytes memory swapData) {
         return _getAdapter(providerID).getAmountInView(path, amountOut);
     }
 
     function getAmountOutView(
         bytes4 providerID,
         address[] memory path,
-        uint amountIn
-    ) public view override returns (uint amountOut, bytes memory swapData) {
+        uint256 amountIn
+    ) public view override returns (uint256 amountOut, bytes memory swapData) {
         return _getAdapter(providerID).getAmountOutView(path, amountIn);
     }
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint amountOut) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
         ISwapAdapter adapter = _getAdapter(params.providerID);
         address tokenOut = params.path[params.path.length - 1];
-        uint balanceBefore = 0;
+        uint256 balanceBefore = 0;
         if (tokenOut.isNativeAsset()) {
             balanceBefore = params.recipient.balance;
         } else {

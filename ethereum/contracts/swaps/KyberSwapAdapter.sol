@@ -20,8 +20,8 @@ contract KyberSwapAdapter is SwapAdapterBase {
 
     function getAmountInView(
         address[] memory path,
-        uint amountOut
-    ) public view override returns (uint amountIn, bytes memory swapData) {
+        uint256 amountOut
+    ) public view override returns (uint256 amountIn, bytes memory swapData) {
         swapData = "";
         _convertPath(path);
         try _router.getAmountsIn(amountOut, _getPoolPath(path), _getERC20Path(path)) returns (uint256[] memory v) {
@@ -34,8 +34,8 @@ contract KyberSwapAdapter is SwapAdapterBase {
 
     function getAmountOutView(
         address[] memory path,
-        uint amountIn
-    ) public view override returns (uint amountOut, bytes memory swapData) {
+        uint256 amountIn
+    ) public view override returns (uint256 amountOut, bytes memory swapData) {
         swapData = "";
         _convertPath(path);
         try _router.getAmountsOut(amountIn, _getPoolPath(path), _getERC20Path(path)) returns (uint256[] memory v) {
@@ -48,14 +48,14 @@ contract KyberSwapAdapter is SwapAdapterBase {
 
     function _getERC20Path(address[] memory path) internal pure returns (IERC20[] memory erc20Path) {
         erc20Path = new IERC20[](path.length);
-        for (uint i = 0; i < path.length; i++) {
+        for (uint256 i = 0; i < path.length; i++) {
             erc20Path[i] = IERC20(path[i]);
         }
     }
 
     function _getPoolPath(address[] memory path) internal view returns (address[] memory poolPath) {
         poolPath = new address[](path.length - 1);
-        for (uint i = 0; i < path.length - 1; i++) {
+        for (uint256 i = 0; i < path.length - 1; i++) {
             poolPath[i] = _getPool(path[i], path[i + 1]);
         }
     }
@@ -64,10 +64,10 @@ contract KyberSwapAdapter is SwapAdapterBase {
         IDMMFactory factory = IDMMFactory(_router.factory());
         address[] memory pools = factory.getPools(IERC20(tokenIn), IERC20(tokenOut));
 
-        uint highestKLast = 0;
+        uint256 highestKLast = 0;
         pool = address(0);
-        for (uint i = 0; i < pools.length; i++) {
-            uint currKLast = IDMMPool(pools[i]).kLast();
+        for (uint256 i = 0; i < pools.length; i++) {
+            uint256 currKLast = IDMMPool(pools[i]).kLast();
             if (currKLast > highestKLast) {
                 highestKLast = currKLast;
                 pool = pools[i];
@@ -77,41 +77,41 @@ contract KyberSwapAdapter is SwapAdapterBase {
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint amountOut) {
+    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         address[] memory path = _convertPath(params.path);
         address[] memory poolPath = _getPoolPath(path);
         IERC20[] memory erc20Path = _getERC20Path(path);
         address tokenIn = params.path[0];
         if (tokenIn.isNativeAsset()) {
-            uint[] memory amounts = _router.swapExactETHForTokens{value: params.amountIn}(
+            uint256[] memory amounts = _router.swapExactETHForTokens{value: params.amountIn}(
                 params.minAmountOut,
                 poolPath,
                 erc20Path,
                 params.recipient,
-                type(uint).max
+                type(uint256).max
             );
             require(amounts.length >= 2);
             amountOut = amounts[amounts.length - 1];
         } else {
             IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
             if (params.path[params.path.length - 1].isNativeAsset()) {
-                uint[] memory amounts = _router.swapExactTokensForETH(
+                uint256[] memory amounts = _router.swapExactTokensForETH(
                     params.amountIn,
                     params.minAmountOut,
                     poolPath,
                     erc20Path,
                     params.recipient,
-                    type(uint).max
+                    type(uint256).max
                 );
                 amountOut = amounts[amounts.length - 1];
             } else {
-                uint[] memory amounts = _router.swapExactTokensForTokens(
+                uint256[] memory amounts = _router.swapExactTokensForTokens(
                     params.amountIn,
                     params.minAmountOut,
                     poolPath,
                     erc20Path,
                     params.recipient,
-                    type(uint).max
+                    type(uint256).max
                 );
                 amountOut = amounts[amounts.length - 1];
             }

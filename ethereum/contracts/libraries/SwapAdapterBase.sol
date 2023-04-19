@@ -5,9 +5,11 @@ import "./AdapterBase.sol";
 import "../interfaces/ISwapAdapter.sol";
 import "../interfaces/tokens/IWrappedNativeAsset.sol";
 import "../libraries/SafeNativeAsset.sol";
+import "../libraries/SafeERC20.sol";
 
 abstract contract SwapAdapterBase is ISwapAdapter, AdapterBase {
     using SafeNativeAsset for address;
+    using SafeERC20 for IERC20;
 
     // wrapped native asset address for swap in current chain
     address internal _wrappedNativeAsset;
@@ -27,19 +29,25 @@ abstract contract SwapAdapterBase is ISwapAdapter, AdapterBase {
         _;
     }
 
-    function getAmountIn(address[] memory path, uint amountOut) external virtual override returns (uint, bytes memory) {
+    function getAmountIn(
+        address[] memory path,
+        uint256 amountOut
+    ) external virtual override returns (uint256, bytes memory) {
         return getAmountInView(path, amountOut);
     }
 
-    function getAmountOut(address[] memory path, uint amountIn) external virtual override returns (uint, bytes memory) {
+    function getAmountOut(
+        address[] memory path,
+        uint256 amountIn
+    ) external virtual override returns (uint256, bytes memory) {
         return getAmountOutView(path, amountIn);
     }
 
-    function getAmountInView(address[] memory, uint) public view virtual returns (uint, bytes memory) {
+    function getAmountInView(address[] memory, uint256) public view virtual returns (uint256, bytes memory) {
         revert("SwapAdapterBase: not supported");
     }
 
-    function getAmountOutView(address[] memory, uint) public view virtual returns (uint, bytes memory) {
+    function getAmountOutView(address[] memory, uint256) public view virtual returns (uint256, bytes memory) {
         revert("SwapAdapterBase: not supported");
     }
 
@@ -49,17 +57,17 @@ abstract contract SwapAdapterBase is ISwapAdapter, AdapterBase {
     }
 
     // @dev transfer native asset to recipient in wrapped token
-    function _wrapNativeAsset(uint amount, address recipient) internal {
+    function _wrapNativeAsset(uint256 amount, address recipient) internal {
         require(address(this).balance >= amount, "SwapAdapterBase: not enough native asset in transaction");
         if (amount > 0) {
             IWrappedNativeAsset wna = IWrappedNativeAsset(WrappedNativeAsset());
             wna.deposit{value: amount}();
-            wna.transfer(recipient, amount);
+            IERC20(wna).safeTransfer(recipient, amount);
         }
     }
 
     // @dev transfer wrapped token to recipient in native asset
-    function _unwrapNativeAsset(uint amount, address recipient) internal {
+    function _unwrapNativeAsset(uint256 amount, address recipient) internal {
         IWrappedNativeAsset wna = IWrappedNativeAsset(WrappedNativeAsset());
         uint256 balance = wna.balanceOf(address(this));
         require(balance >= amount, "SwapAdapterBase: not enough native asset in transaction");
@@ -76,7 +84,7 @@ abstract contract SwapAdapterBase is ISwapAdapter, AdapterBase {
 
     // @dev replace native asset address to wrapped token address
     function _convertPath(address[] memory path) internal view returns (address[] memory) {
-        for (uint i = 0; i < path.length; i++) {
+        for (uint256 i = 0; i < path.length; i++) {
             if (path[i].isNativeAsset()) {
                 path[i] = WrappedNativeAsset();
             }
