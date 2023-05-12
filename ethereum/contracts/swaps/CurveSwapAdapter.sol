@@ -2,6 +2,7 @@
 pragma solidity ^0.8.11;
 
 import "../interfaces/swaps/curve/IAddressProvider.sol";
+import "../interfaces/swaps/curve/IRegistry.sol";
 import "../interfaces/swaps/curve/IExchange.sol";
 import "../interfaces/swaps/curve/ICurvePool.sol";
 import "../libraries/SwapAdapterBase.sol";
@@ -13,10 +14,12 @@ contract CurveSwapAdapter is SwapAdapterBase {
     using SafeERC20 for IERC20;
 
     IAddressProvider private immutable _addressProvider;
+    IRegistry private immutable _registry;
     IExchange private immutable _curve;
 
     constructor(address addressProvider) {
         _addressProvider = IAddressProvider(addressProvider);
+        _registry = IRegistry(_addressProvider.get_registry());
         _curve = IExchange(_addressProvider.get_address(2));
         _setWrappedNativeAsset(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
@@ -52,6 +55,8 @@ contract CurveSwapAdapter is SwapAdapterBase {
         if (tokenIn != WrappedNativeAsset()) {
             IERC20(tokenIn).safeApproveToMax(address(_curve), params.amountIn);
         }
+        uint256[2] memory poolCoins = _registry.get_n_coins(pool);
+        require(poolCoins[0] > 0, "CurveSwapAdapter: invalid pool");
         try
             _curve.exchange{value: value}(
                 pool,
@@ -67,7 +72,7 @@ contract CurveSwapAdapter is SwapAdapterBase {
             if (tokenIn != _wrappedNativeAsset) {
                 IERC20(tokenIn).safeApproveToMax(pool, params.amountIn);
             }
-            (int128 indexIn, int128 indexOut) = _getTokensIndex(pool, tokenIn, tokenOut);
+            (int128 indexIn, int128 indexOut) = _getTokensIndex(pool, poolCoins[0], tokenIn, tokenOut);
             amountOut = ICurvePool(pool).exchange{value: value}(
                 indexIn,
                 indexOut,
@@ -80,12 +85,13 @@ contract CurveSwapAdapter is SwapAdapterBase {
 
     function _getTokensIndex(
         address pool,
+        uint256 poolCoins,
         address tokenIn,
         address tokenOut
     ) internal returns (int128 indexIn, int128 indexOut) {
         indexIn = -1;
         indexOut = -1;
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < poolCoins; i++) {
             try ICurvePool(pool).coins(i) returns (address token) {
                 if (token == tokenIn) {
                     indexIn = int128(uint128(i));

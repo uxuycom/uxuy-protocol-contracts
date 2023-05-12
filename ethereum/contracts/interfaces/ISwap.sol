@@ -45,5 +45,5 @@ interface ISwap is IProviderRegistry {
 
     // @dev calls swap adapter to fulfill the exchange
     // @return amountOut the amount of tokens transferred out, guarantee amountOut >= params.minAmountOut
-    function swap(SwapParams calldata params) external payable returns (uint256 amountOut);
+    function swap(SwapParams calldata params) external returns (uint256 amountOut);
 }

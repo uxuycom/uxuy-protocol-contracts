@@ -11,6 +11,12 @@ contract AnySwapBridgeAdapter is BridgeAdapterBase {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
+    address private immutable _anySwapRouter;
+
+    constructor(address anySwapRouter) {
+        _anySwapRouter = anySwapRouter;
+    }
+
     function supportSwap() external pure returns (bool) {
         return false;
     }
@@ -19,6 +25,7 @@ contract AnySwapBridgeAdapter is BridgeAdapterBase {
         BridgeParams calldata params
     ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         (address router, address anyToken, address tokenAddr) = abi.decode(params.data, (address, address, address));
+        require(router == _anySwapRouter, "AnySwapBridgeAdapter: illegal router");
         address tokenIn = params.tokenIn;
         if (tokenIn.isNativeAsset()) {
             require(address(this).balance >= params.amountIn, "AnySwapBridgeAdapter: not enough native assets");

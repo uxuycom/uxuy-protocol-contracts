@@ -45,7 +45,7 @@ contract UxuySwap is ISwap, BrokerBase {
 
     function swap(
         SwapParams calldata params
-    ) external payable whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
+    ) external whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
         ISwapAdapter adapter = _getAdapter(params.providerID);
         address tokenOut = params.path[params.path.length - 1];
         uint256 balanceBefore = 0;

@@ -59,23 +59,7 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
             amountOut = _swapExactETHForTokens(params.path, params.recipient, params.amountIn, params.minAmountOut);
         } else {
             IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
-            uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
-            require(balanceBefore > (params.amountIn * 95) / 100, "UniswapV2SwapAdapter: not enough balance");
-            if (balanceBefore < params.amountIn) {
-                amountOut = _swapExactTokensForOthersSupportingFeeOnTransferTokens(
-                    params.path,
-                    params.recipient,
-                    params.amountIn,
-                    params.minAmountOut
-                );
-            } else {
-                amountOut = _swapExactTokensForOthers(
-                    params.path,
-                    params.recipient,
-                    params.amountIn,
-                    params.minAmountOut
-                );
-            }
+            amountOut = _swapExactTokensForOthers(params.path, params.recipient, params.amountIn, params.minAmountOut);
         }
     }
 
@@ -144,36 +128,6 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
                 );
                 amountOut = 0;
             }
-        }
-    }
-
-    function _swapExactTokensForOthersSupportingFeeOnTransferTokens(
-        address[] memory path,
-        address recipient,
-        uint256 amountIn,
-        uint256 minAmountOut
-    ) internal returns (uint256 amountOut) {
-        address tokenOut = path[path.length - 1];
-        if (tokenOut.isNativeAsset()) {
-            path[path.length - 1] = WrappedNativeAsset();
-            _router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-                amountIn,
-                minAmountOut,
-                path,
-                recipient,
-                UNEXPIRED
-            );
-            amountOut = 0;
-        } else {
-            _convertPath(path);
-            _router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                amountIn,
-                minAmountOut,
-                path,
-                recipient,
-                UNEXPIRED
-            );
-            amountOut = 0;
         }
     }
 }

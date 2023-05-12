@@ -4,11 +4,12 @@ pragma solidity ^0.8.11;
 import "./interfaces/IProtocol.sol";
 import "./interfaces/ISwap.sol";
 import "./interfaces/IBridge.sol";
-import "./libraries/BrokerBase.sol";
+import "./libraries/Adminable.sol";
+import "./libraries/CommonBase.sol";
 import "./libraries/SafeNativeAsset.sol";
 import "./libraries/SafeERC20.sol";
 
-contract UxuyProtocol is IProtocol, CommonBase {
+contract UxuyProtocol is IProtocol, Adminable, CommonBase {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
@@ -28,6 +29,12 @@ contract UxuyProtocol is IProtocol, CommonBase {
 
     // fee rate denominator
     uint256 private constant FEE_DENOMINATOR = 1e6;
+
+    // maximum allowed fee rate
+    uint256 private constant MAX_FEE_RATE = 1e5;
+
+    // maximum allowed extra fee ratio
+    uint256 private constant MAX_EXTRA_FEE_RATIO = 2;
 
     // swap contract
     ISwap private _swapContract;
@@ -110,22 +117,22 @@ contract UxuyProtocol is IProtocol, CommonBase {
     }
 
     // @dev changes the swap and bridge contract addresses
-    function setContract(address swapContract_, address bridgeContract_) external onlyOwner {
+    function setContract(address swapContract_, address bridgeContract_) external onlyAdmin {
         _setContract(swapContract_, bridgeContract_);
     }
 
     // @dev changes the fee rate
-    function setFeeRate(uint256 feeRate_, uint256 feeShareRate_) external onlyOwner {
+    function setFeeRate(uint256 feeRate_, uint256 feeShareRate_) external onlyAdmin {
         _setFeeRate(feeRate_, feeShareRate_);
     }
 
     // @dev changes the fee recipients
-    function setFeeRecipient(address main, address alt) external onlyOwner {
+    function setFeeRecipient(address main, address alt) external onlyAdmin {
         _setFeeRecipient(main, alt);
     }
 
     // @dev updates free of charge accounts
-    function updateFOCAccounts(address[] calldata accounts, bool foc) external onlyOwner {
+    function updateFOCAccounts(address[] calldata accounts, bool foc) external onlyAdmin {
         for (uint256 i = 0; i < accounts.length; i++) {
             if (foc) {
                 _focAccounts[accounts[i]] = true;
@@ -137,7 +144,7 @@ contract UxuyProtocol is IProtocol, CommonBase {
     }
 
     // @dev changes the token accept status
-    function updateFeeTokens(address[] calldata tokens, bool main) external onlyOwner {
+    function updateFeeTokens(address[] calldata tokens, bool main) external onlyAdmin {
         for (uint256 i = 0; i < tokens.length; i++) {
             if (main) {
                 _mainFeeTokens[tokens[i]] = true;
@@ -164,11 +171,17 @@ contract UxuyProtocol is IProtocol, CommonBase {
             for (uint256 i = 0; i < params.swaps.length; i++) {
                 require(
                     _swapContract.getProvider(params.swaps[i].providerID) != NULL_ADDRESS,
-                    "UxuyProtocol: invalid swap provider"
+                    "UP: invalid swap provider"
                 );
             }
             state.tokenIn = params.swaps[0].path[0];
             state.nextRecipient = _swapContract.getProvider(params.swaps[0].providerID);
+            if (params.bridge.providerID != 0) {
+                require(
+                    _tokenOut(params.swaps[params.swaps.length - 1].path) == params.bridge.tokenIn,
+                    "UP: swap and bridge token mismatch"
+                );
+            }
         } else {
             state.tokenIn = params.bridge.tokenIn;
             state.nextRecipient = _bridgeContract.getProvider(params.bridge.providerID);
@@ -178,26 +191,26 @@ contract UxuyProtocol is IProtocol, CommonBase {
         } else {
             require(
                 _bridgeContract.getProvider(params.bridge.providerID) != NULL_ADDRESS,
-                "UxuyProtocol: invalid bridge provider"
+                "UP: invalid bridge provider"
             );
             state.tokenOut = params.bridge.tokenOut;
         }
         if (state.tokenIn.isNativeAsset()) {
-            require(msg.value >= params.amountIn, "UxuyProtocol: not enough ETH in transaction");
+            require(msg.value >= params.amountIn, "UP: not enough ETH in transaction");
             amountOut = msg.value;
         } else {
             require(
                 IERC20(state.tokenIn).balanceOf(_msgSender()) >= params.amountIn,
-                "UxuyProtocol: sender token balance is not enough"
+                "UP: sender token balance is not enough"
             );
             require(
                 IERC20(state.tokenIn).allowance(_msgSender(), address(this)) >= params.amountIn,
-                "UxuyProtocol: token allowance is not enough"
+                "UP: token allowance is not enough"
             );
             amountOut = params.amountIn;
         }
         if (params.extraFeeAmountIn > 0) {
-            require(amountOut > params.extraFeeAmountIn, "UxuyProtocol: not enough amount for extra fee");
+            require(amountOut >= params.extraFeeAmountIn * MAX_EXTRA_FEE_RATIO, "UP: extra fee exceeds limit");
             state.extraFeeAmount = _payExtraFee(state.tokenIn, params.extraFeeAmountIn, params.extraFeeSwaps);
             amountOut -= params.extraFeeAmountIn;
         }
@@ -248,7 +261,7 @@ contract UxuyProtocol is IProtocol, CommonBase {
                     amountOut,
                     params.feeShareRecipient
                 );
-                require(amountOut >= swap.minAmountOut, "UxuyProtocol: amount less than minAmountOut");
+                require(amountOut >= swap.minAmountOut, "UP: amount less than minimum");
                 uint256 balanceBefore = 0;
                 if (!state.feeToken.isNativeAsset()) {
                     balanceBefore = IERC20(state.feeToken).balanceOf(state.nextRecipient);
@@ -294,24 +307,22 @@ contract UxuyProtocol is IProtocol, CommonBase {
     }
 
     function _setContract(address swapContract_, address bridgeContract_) internal {
-        require(
-            swapContract_ != NULL_ADDRESS && bridgeContract_ != NULL_ADDRESS,
-            "UxuyProtocol: invalid contract address"
-        );
+        require(swapContract_ != NULL_ADDRESS && bridgeContract_ != NULL_ADDRESS, "UP: invalid contract address");
         _swapContract = ISwap(swapContract_);
         _bridgeContract = IBridge(bridgeContract_);
         emit ContractChanged(swapContract_, bridgeContract_);
     }
 
     function _setFeeRate(uint256 feeRate_, uint256 feeShareRate_) internal {
-        require(feeRate_ >= feeShareRate_, "UxuyProtocol: fee share rate is less than total fee rate");
+        require(feeRate_ <= MAX_FEE_RATE, "UP: fee rate exceeds limit");
+        require(feeRate_ >= feeShareRate_, "UP: fee share rate is less than total fee rate");
         _feeRate = feeRate_;
         _feeShareRate = feeShareRate_;
         emit FeeRateChanged(_feeRate, _feeShareRate);
     }
 
     function _setFeeRecipient(address main, address alt) internal {
-        require(main != NULL_ADDRESS && alt != NULL_ADDRESS, "UxuyProtocol: fee recipient is null");
+        require(main != NULL_ADDRESS && alt != NULL_ADDRESS, "UP: fee recipient is null");
         _mainFeeRecipient = main;
         _altFeeRecipient = alt;
         emit FeeRecipientChanged(_mainFeeRecipient, _altFeeRecipient);
@@ -393,12 +404,12 @@ contract UxuyProtocol is IProtocol, CommonBase {
             return (amount, 0, 0);
         }
         feeAmount = (amount * _feeRate) / FEE_DENOMINATOR;
-        require(feeAmount > 0, "UxuyProtocol: fee amount is zero");
+        require(feeAmount > 0, "UP: fee amount is 0");
         feeShareAmount = 0;
         uint256 feeLeftAmount = feeAmount;
         if (feeShareRecipient != NULL_ADDRESS) {
             feeShareAmount = (amount * _feeShareRate) / FEE_DENOMINATOR;
-            require(feeShareAmount > 0, "UxuyProtocol: fee share amount is zero");
+            require(feeShareAmount > 0, "UP: fee share amount is 0");
             _safeTransfer(sender, token, feeShareAmount, feeShareRecipient);
             feeLeftAmount -= feeShareAmount;
         }

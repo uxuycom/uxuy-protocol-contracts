@@ -2,17 +2,17 @@
 pragma solidity ^0.8.11;
 
 import "../interfaces/IProviderRegistry.sol";
-import "./Ownable.sol";
+import "./Adminable.sol";
 
-abstract contract ProviderRegistry is IProviderRegistry, Ownable {
+abstract contract ProviderRegistry is IProviderRegistry, Adminable {
     mapping(bytes4 => address) private _providers;
     bytes4[] private _allProviderIDs;
 
-    function setProvider(bytes4 id, address provider) external override onlyOwner {
+    function setProvider(bytes4 id, address provider) external override onlyAdmin {
         _setProvider(id, provider);
     }
 
-    function setProviders(bytes4[] calldata ids, address[] calldata providers) external override onlyOwner {
+    function setProviders(bytes4[] calldata ids, address[] calldata providers) external override onlyAdmin {
         require(ids.length == providers.length, "ProviderRegistry: ids and providers length mismatch");
         for (uint256 i = 0; i < ids.length; i++) {
             _setProvider(ids[i], providers[i]);
@@ -27,11 +27,11 @@ abstract contract ProviderRegistry is IProviderRegistry, Ownable {
         emit ProviderChanged(id, provider);
     }
 
-    function removeProvider(bytes4 id) external override onlyOwner {
+    function removeProvider(bytes4 id) external override onlyAdmin {
         _removeProvider(id);
     }
 
-    function removeProviders(bytes4[] calldata ids) external override onlyOwner {
+    function removeProviders(bytes4[] calldata ids) external override onlyAdmin {
         for (uint256 i = 0; i < ids.length; i++) {
             _removeProvider(ids[i]);
         }

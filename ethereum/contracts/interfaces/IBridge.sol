@@ -21,5 +21,5 @@ interface IBridge is IProviderRegistry {
     // @dev calls bridge adapter to fulfill the exchange.
     // @return amountOut the amount of tokens transferred out, may be 0.
     // @return txnID the transaction id of the bridge, may be 0.
-    function bridge(BridgeParams calldata params) external payable returns (uint256 amountOut, uint256 txnID);
+    function bridge(BridgeParams calldata params) external returns (uint256 amountOut, uint256 txnID);
 }
