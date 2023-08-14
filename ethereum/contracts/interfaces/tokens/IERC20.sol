@@ -22,6 +22,11 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
     /**
+     * @dev Returns the number of decimals the token uses.
+     */
+    function decimals() external view returns (uint8);
+
+    /**
      * @dev Returns the amount of tokens in existence.
      */
     function totalSupply() external view returns (uint256);

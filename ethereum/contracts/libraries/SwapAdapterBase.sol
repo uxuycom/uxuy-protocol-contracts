@@ -29,28 +29,6 @@ abstract contract SwapAdapterBase is ISwapAdapter, AdapterBase {
         _;
     }
 
-    function getAmountIn(
-        address[] memory path,
-        uint256 amountOut
-    ) external virtual override returns (uint256, bytes memory) {
-        return getAmountInView(path, amountOut);
-    }
-
-    function getAmountOut(
-        address[] memory path,
-        uint256 amountIn
-    ) external virtual override returns (uint256, bytes memory) {
-        return getAmountOutView(path, amountIn);
-    }
-
-    function getAmountInView(address[] memory, uint256) public view virtual returns (uint256, bytes memory) {
-        revert("SwapAdapterBase: not supported");
-    }
-
-    function getAmountOutView(address[] memory, uint256) public view virtual returns (uint256, bytes memory) {
-        revert("SwapAdapterBase: not supported");
-    }
-
     // @dev get wrapped native asset address for swap in current chain
     function WrappedNativeAsset() public view virtual returns (address) {
         return _wrappedNativeAsset;

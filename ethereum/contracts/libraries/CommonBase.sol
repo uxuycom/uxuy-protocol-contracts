@@ -12,7 +12,7 @@ contract CommonBase is Ownable, Pausable, CallerControl, ReentrancyGuard {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
-    uint256 internal constant TRON_CHAIN_ID = 0x1ebf88508a03865c71d452e25f4d51194196a1d22b6653dc;
+    uint256 internal constant TRON_CHAIN_ID = 0x2b6653dc;
 
     // The original address of this contract
     address private immutable _original;

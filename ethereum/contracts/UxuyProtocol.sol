@@ -170,13 +170,13 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
         if (params.swaps.length > 0) {
             for (uint256 i = 0; i < params.swaps.length; i++) {
                 require(
-                    _swapContract.getProvider(params.swaps[i].providerID) != NULL_ADDRESS,
+                    params.swaps[i].provider != NULL_ADDRESS,
                     "UP: invalid swap provider"
                 );
             }
             state.tokenIn = params.swaps[0].path[0];
-            state.nextRecipient = _swapContract.getProvider(params.swaps[0].providerID);
-            if (params.bridge.providerID != 0) {
+            state.nextRecipient = params.swaps[0].provider;
+            if (params.bridge.provider != NULL_ADDRESS) {
                 require(
                     _tokenOut(params.swaps[params.swaps.length - 1].path) == params.bridge.tokenIn,
                     "UP: swap and bridge token mismatch"
@@ -184,13 +184,13 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
             }
         } else {
             state.tokenIn = params.bridge.tokenIn;
-            state.nextRecipient = _bridgeContract.getProvider(params.bridge.providerID);
+            state.nextRecipient = params.bridge.provider;
         }
-        if (params.bridge.providerID == 0) {
+        if (params.bridge.provider == NULL_ADDRESS) {
             state.tokenOut = _tokenOut(params.swaps[params.swaps.length - 1].path);
         } else {
             require(
-                _bridgeContract.getProvider(params.bridge.providerID) != NULL_ADDRESS,
+                params.bridge.provider != NULL_ADDRESS,
                 "UP: invalid bridge provider"
             );
             state.tokenOut = params.bridge.tokenOut;
@@ -237,15 +237,16 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
         for (uint256 i = 0; i < params.swaps.length; i++) {
             SwapParams calldata swap = params.swaps[i];
             if (i + 1 < params.swaps.length) {
-                state.nextRecipient = _swapContract.getProvider(params.swaps[i + 1].providerID);
-            } else if (params.bridge.providerID != 0) {
-                state.nextRecipient = _bridgeContract.getProvider(params.bridge.providerID);
+                state.nextRecipient = params.swaps[i + 1].provider;
+            } else if (params.bridge.provider != NULL_ADDRESS) {
+                state.nextRecipient = params.bridge.provider;
             } else {
                 state.nextRecipient = params.recipient;
             }
             amountOut = _swapContract.swap(
                 ISwap.SwapParams({
-                    providerID: swap.providerID,
+                    provider: swap.provider,
+                    router: swap.router,
                     path: swap.path,
                     amountIn: amountOut,
                     minAmountOut: swap.minAmountOut,
@@ -274,11 +275,12 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
             }
         }
         bridgeTxnID = 0;
-        if (params.bridge.providerID != 0) {
+        if (params.bridge.provider != NULL_ADDRESS) {
             BridgeParams calldata bridge = params.bridge;
             (amountOut, bridgeTxnID) = _bridgeContract.bridge(
                 IBridge.BridgeParams({
-                    providerID: bridge.providerID,
+                    provider: bridge.provider,
+                    router: bridge.router,
                     tokenIn: bridge.tokenIn,
                     chainIDOut: bridge.chainIDOut,
                     tokenOut: bridge.tokenOut,
@@ -291,6 +293,7 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
         }
         emit Traded(
             _msgSender(),
+            params.orderId,
             params.recipient,
             params.feeShareRecipient,
             state.tokenIn,
@@ -362,7 +365,7 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
         if (swaps.length == 0) {
             nextRecipient = _msgSender();
         } else {
-            nextRecipient = _swapContract.getProvider(swaps[0].providerID);
+            nextRecipient = swaps[0].provider;
         }
         if (tokenIn.isNativeAsset()) {
             nextRecipient.safeTransfer(amountIn);
@@ -376,13 +379,14 @@ contract UxuyProtocol is IProtocol, Adminable, CommonBase {
         for (uint256 i = 0; i < swaps.length; i++) {
             SwapParams calldata swap = swaps[i];
             if (i + 1 < swaps.length) {
-                nextRecipient = _swapContract.getProvider(swaps[i + 1].providerID);
+                nextRecipient = swaps[i + 1].provider;
             } else {
                 nextRecipient = _msgSender();
             }
             amountIn = _swapContract.swap(
                 ISwap.SwapParams({
-                    providerID: swap.providerID,
+                    provider: swap.provider,
+                    router: swap.router,
                     path: swap.path,
                     amountIn: amountIn,
                     minAmountOut: swap.minAmountOut,

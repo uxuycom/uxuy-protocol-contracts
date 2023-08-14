@@ -11,42 +11,10 @@ contract UxuySwap is ISwap, BrokerBase {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
-    function getAmountIn(
-        bytes4 providerID,
-        address[] memory path,
-        uint256 amountOut
-    ) external override returns (uint256, bytes memory) {
-        return _getAdapter(providerID).getAmountIn(path, amountOut);
-    }
-
-    function getAmountOut(
-        bytes4 providerID,
-        address[] memory path,
-        uint256 amountIn
-    ) external override returns (uint256, bytes memory) {
-        return _getAdapter(providerID).getAmountOut(path, amountIn);
-    }
-
-    function getAmountInView(
-        bytes4 providerID,
-        address[] memory path,
-        uint256 amountOut
-    ) public view override returns (uint256 amountIn, bytes memory swapData) {
-        return _getAdapter(providerID).getAmountInView(path, amountOut);
-    }
-
-    function getAmountOutView(
-        bytes4 providerID,
-        address[] memory path,
-        uint256 amountIn
-    ) public view override returns (uint256 amountOut, bytes memory swapData) {
-        return _getAdapter(providerID).getAmountOutView(path, amountIn);
-    }
-
     function swap(
         SwapParams calldata params
     ) external whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256 amountOut) {
-        ISwapAdapter adapter = _getAdapter(params.providerID);
+        ISwapAdapter adapter = _getAdapter(params.provider);
         address tokenOut = params.path[params.path.length - 1];
         uint256 balanceBefore = 0;
         if (tokenOut.isNativeAsset()) {
@@ -56,6 +24,7 @@ contract UxuySwap is ISwap, BrokerBase {
         }
         adapter.swap(
             ISwapAdapter.SwapParams({
+                router: params.router,
                 path: params.path,
                 amountIn: params.amountIn,
                 minAmountOut: params.minAmountOut,
@@ -71,8 +40,7 @@ contract UxuySwap is ISwap, BrokerBase {
         require(amountOut >= params.minAmountOut, "UxuySwap: swapped amount less than minAmountOut");
     }
 
-    function _getAdapter(bytes4 providerID) internal view returns (ISwapAdapter) {
-        address provider = _getProvider(providerID);
+    function _getAdapter(address provider) internal pure returns (ISwapAdapter) {
         require(provider != address(0), "UxuySwap: provider not found");
         return ISwapAdapter(provider);
     }

@@ -12,21 +12,20 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
 
     uint256 internal constant UNEXPIRED = type(uint256).max;
 
-    IUniswapV2Router private immutable _router;
-
-    constructor(address router) {
-        _router = IUniswapV2Router(router);
-        _setWrappedNativeAsset(_router.WETH());
+    constructor(address wrappedAsset) {
+        _setWrappedNativeAsset(wrappedAsset);
     }
 
-    function getAmountInView(
+    function getAmountIn(
+        address router,
         address[] memory path,
         uint256 amountOut
-    ) public view override returns (uint256 amountIn, bytes memory swapData) {
+    ) external virtual returns (uint256 amountIn, bytes memory swapData) {
         require(path.length >= 2, "UniswapV2SwapAdapter: invalid path");
         require(amountOut > 0, "UniswapV2SwapAdapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
+        IUniswapV2Router _router = IUniswapV2Router(router);
         try _router.getAmountsIn(amountOut, path) returns (uint256[] memory v) {
             require(v.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
             amountIn = v[0];
@@ -35,14 +34,16 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
         }
     }
 
-    function getAmountOutView(
+    function getAmountOut(
+        address router,
         address[] memory path,
         uint256 amountIn
-    ) public view override returns (uint256 amountOut, bytes memory swapData) {
+    ) external virtual returns (uint256 amountOut, bytes memory swapData) {
         require(path.length >= 2, "UniswapV2SwapAdapter: invalid path");
         require(amountIn > 0, "UniswapV2SwapAdapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
+        IUniswapV2Router _router = IUniswapV2Router(router);
         try _router.getAmountsOut(amountIn, path) returns (uint256[] memory v) {
             require(v.length >= 2, "UniswapV2SwapAdapter: invalid amounts");
             amountOut = v[v.length - 1];
@@ -56,14 +57,15 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
     ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         address tokenIn = params.path[0];
         if (tokenIn.isNativeAsset()) {
-            amountOut = _swapExactETHForTokens(params.path, params.recipient, params.amountIn, params.minAmountOut);
+            amountOut = _swapExactETHForTokens(params.router, params.path, params.recipient, params.amountIn, params.minAmountOut);
         } else {
-            IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
-            amountOut = _swapExactTokensForOthers(params.path, params.recipient, params.amountIn, params.minAmountOut);
+            IERC20(tokenIn).safeApproveToMax(params.router, params.amountIn);
+            amountOut = _swapExactTokensForOthers(params.router, params.path, params.recipient, params.amountIn, params.minAmountOut);
         }
     }
 
     function _swapExactETHForTokens(
+        address router,
         address[] memory path,
         address recipient,
         uint256 amountIn,
@@ -71,6 +73,7 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
     ) internal returns (uint256 amountOut) {
         require(address(this).balance >= amountIn, "UniswapV2SwapAdapter: not enough native assets in transaction");
         path[0] = WrappedNativeAsset();
+        IUniswapV2Router _router = IUniswapV2Router(router);
         try _router.swapExactETHForTokens{value: amountIn}(minAmountOut, path, recipient, UNEXPIRED) returns (
             uint256[] memory amounts
         ) {
@@ -88,12 +91,14 @@ contract UniswapV2SwapAdapter is SwapAdapterBase {
     }
 
     function _swapExactTokensForOthers(
+        address router,
         address[] memory path,
         address recipient,
         uint256 amountIn,
         uint256 minAmountOut
     ) internal returns (uint256 amountOut) {
         address tokenOut = path[path.length - 1];
+        IUniswapV2Router _router = IUniswapV2Router(router);
         if (tokenOut.isNativeAsset()) {
             path[path.length - 1] = WrappedNativeAsset();
             try _router.swapExactTokensForETH(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (

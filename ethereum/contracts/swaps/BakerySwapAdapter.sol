@@ -1,50 +1,51 @@
 //SPDX-License-Identifier: UXUY
 pragma solidity ^0.8.11;
 
-import "../interfaces/swaps/traderjoe/ITraderJoeV1Router.sol";
+import "../interfaces/swaps/bakeryswap/IBakerySwapRouter.sol";
 import "../libraries/SwapAdapterBase.sol";
 import "../libraries/SafeNativeAsset.sol";
 import "../libraries/SafeERC20.sol";
 
-contract TraderJoeV1SwapAdapter is SwapAdapterBase {
+contract BakerySwapAdapter is SwapAdapterBase {
     using SafeNativeAsset for address;
     using SafeERC20 for IERC20;
 
     uint256 internal constant UNEXPIRED = type(uint256).max;
 
-    ITraderJoeV1Router private immutable _router;
-
-    constructor(address router) {
-        _router = ITraderJoeV1Router(router);
-        _setWrappedNativeAsset(_router.WAVAX());
+    constructor(address wrappedAsset) {
+        _setWrappedNativeAsset(wrappedAsset);
     }
 
-    function getAmountInView(
+    function getAmountIn(
+        address router,
         address[] memory path,
         uint256 amountOut
-    ) public view override returns (uint256 amountIn, bytes memory swapData) {
-        require(path.length >= 2, "TraderJoeV1SwapAdapter: invalid path");
-        require(amountOut > 0, "TraderJoeV1SwapAdapter: request amount must be greater than 0");
+    ) external virtual returns (uint256 amountIn, bytes memory swapData) {
+        require(path.length >= 2, "BakerySwapAdapter: invalid path");
+        require(amountOut > 0, "BakerySwapAdapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
+        IBakerySwapRouter _router = IBakerySwapRouter(router);
         try _router.getAmountsIn(amountOut, path) returns (uint256[] memory v) {
-            require(v.length >= 2, "TraderJoeV1SwapAdapter: invalid amounts");
+            require(v.length >= 2, "BakerySwapAdapter: invalid amounts");
             amountIn = v[0];
         } catch {
             amountIn = 0;
         }
     }
 
-    function getAmountOutView(
+    function getAmountOut(
+        address router,
         address[] memory path,
         uint256 amountIn
-    ) public view override returns (uint256 amountOut, bytes memory swapData) {
-        require(path.length >= 2, "TraderJoeV1SwapAdapter: invalid path");
-        require(amountIn > 0, "TraderJoeV1SwapAdapter: request amount must be greater than 0");
+    ) external virtual returns (uint256 amountOut, bytes memory swapData) {
+        require(path.length >= 2, "BakerySwapAdapter: invalid path");
+        require(amountIn > 0, "BakerySwapAdapter: request amount must be greater than 0");
         swapData = "";
         _convertPath(path);
+        IBakerySwapRouter _router = IBakerySwapRouter(router);
         try _router.getAmountsOut(amountIn, path) returns (uint256[] memory v) {
-            require(v.length >= 2, "TraderJoeV1SwapAdapter: invalid amounts");
+            require(v.length >= 2, "BakerySwapAdapter: invalid amounts");
             amountOut = v[v.length - 1];
         } catch {
             amountOut = 0;
@@ -56,28 +57,30 @@ contract TraderJoeV1SwapAdapter is SwapAdapterBase {
     ) external payable whenNotPaused onlyAllowedCaller noDelegateCall handleWrap(params) returns (uint256 amountOut) {
         address tokenIn = params.path[0];
         if (tokenIn.isNativeAsset()) {
-            amountOut = _swapExactAVAXForTokens(params.path, params.recipient, params.amountIn, params.minAmountOut);
+            amountOut = _swapExactBNBForTokens(params.router, params.path, params.recipient, params.amountIn, params.minAmountOut);
         } else {
-            IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
-            amountOut = _swapExactTokensForOthers(params.path, params.recipient, params.amountIn, params.minAmountOut);
+            IERC20(tokenIn).safeApproveToMax(params.router, params.amountIn);
+            amountOut = _swapExactTokensForOthers(params.router, params.path, params.recipient, params.amountIn, params.minAmountOut);
         }
     }
 
-    function _swapExactAVAXForTokens(
+    function _swapExactBNBForTokens(
+        address router,
         address[] memory path,
         address recipient,
         uint256 amountIn,
         uint256 minAmountOut
     ) internal returns (uint256 amountOut) {
-        require(address(this).balance >= amountIn, "TraderJoeV1SwapAdapter: not enough native assets in transaction");
+        require(address(this).balance >= amountIn, "BakerySwapAdapter: not enough native assets in transaction");
         path[0] = WrappedNativeAsset();
-        try _router.swapExactAVAXForTokens{value: amountIn}(minAmountOut, path, recipient, UNEXPIRED) returns (
+        IBakerySwapRouter _router = IBakerySwapRouter(router);
+        try _router.swapExactBNBForTokens{value: amountIn}(minAmountOut, path, recipient, UNEXPIRED) returns (
             uint256[] memory amounts
         ) {
-            require(amounts.length >= 2, "TraderJoeV1SwapAdapter: invalid amounts");
+            require(amounts.length >= 2, "BakerySwapAdapter: invalid amounts");
             amountOut = amounts[amounts.length - 1];
         } catch {
-            _router.swapExactAVAXForTokensSupportingFeeOnTransferTokens{value: amountIn}(
+            _router.swapExactBNBForTokensSupportingFeeOnTransferTokens{value: amountIn}(
                 minAmountOut,
                 path,
                 recipient,
@@ -88,21 +91,23 @@ contract TraderJoeV1SwapAdapter is SwapAdapterBase {
     }
 
     function _swapExactTokensForOthers(
+        address router,
         address[] memory path,
         address recipient,
         uint256 amountIn,
         uint256 minAmountOut
     ) internal returns (uint256 amountOut) {
         address tokenOut = path[path.length - 1];
+        IBakerySwapRouter _router = IBakerySwapRouter(router);
         if (tokenOut.isNativeAsset()) {
             path[path.length - 1] = WrappedNativeAsset();
-            try _router.swapExactTokensForAVAX(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
+            try _router.swapExactTokensForBNB(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
                 uint256[] memory amounts
             ) {
-                require(amounts.length >= 2, "TraderJoeV1SwapAdapter: invalid amounts");
+                require(amounts.length >= 2, "BakerySwapAdapter: invalid amounts");
                 amountOut = amounts[amounts.length - 1];
             } catch {
-                _router.swapExactTokensForAVAXSupportingFeeOnTransferTokens(
+                _router.swapExactTokensForBNBSupportingFeeOnTransferTokens(
                     amountIn,
                     minAmountOut,
                     path,
@@ -116,7 +121,7 @@ contract TraderJoeV1SwapAdapter is SwapAdapterBase {
             try _router.swapExactTokensForTokens(amountIn, minAmountOut, path, recipient, UNEXPIRED) returns (
                 uint256[] memory amounts
             ) {
-                require(amounts.length >= 2, "TraderJoeV1SwapAdapter: invalid amounts");
+                require(amounts.length >= 2, "BakerySwapAdapter: invalid amounts");
                 amountOut = amounts[amounts.length - 1];
             } catch {
                 _router.swapExactTokensForTokensSupportingFeeOnTransferTokens(

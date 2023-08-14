@@ -3,14 +3,16 @@ pragma solidity ^0.8.11;
 
 interface IProtocol {
     struct SwapParams {
-        bytes4 providerID;
+        address provider;
+        address router;
         address[] path;
         uint256 minAmountOut;
         bytes data;
     }
 
     struct BridgeParams {
-        bytes4 providerID;
+        address provider;
+        address router;
         address tokenIn;
         uint256 chainIDOut;
         address tokenOut;
@@ -27,6 +29,7 @@ interface IProtocol {
         uint256 extraFeeAmountIn; // Extra fee deducted to pay the gas fee
         SwapParams[] extraFeeSwaps;
         uint256 deadline;
+        uint256 orderId;
     }
 
     // @dev Emitted when fee rate is updated
@@ -35,6 +38,7 @@ interface IProtocol {
     // @dev Emitted when trade is executed
     event Traded(
         address indexed sender,
+        uint256 orderId,
         address indexed recipient,
         address indexed feeShareRecipient,
         address tokenIn,

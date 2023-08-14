@@ -1,11 +1,10 @@
 //SPDX-License-Identifier: UXUY
 pragma solidity ^0.8.11;
 
-import "./IProviderRegistry.sol";
-
-interface IBridge is IProviderRegistry {
+interface IBridge {
     struct BridgeParams {
-        bytes4 providerID;
+        address provider;
+        address router;
         address tokenIn;
         uint256 chainIDOut;
         address tokenOut;
@@ -16,7 +15,7 @@ interface IBridge is IProviderRegistry {
     }
 
     // @dev checks if the bridge adapter supports swap between different tokens.
-    function supportSwap(bytes4 providerID) external view returns (bool);
+    function supportSwap(address provider) external view returns (bool);
 
     // @dev calls bridge adapter to fulfill the exchange.
     // @return amountOut the amount of tokens transferred out, may be 0.

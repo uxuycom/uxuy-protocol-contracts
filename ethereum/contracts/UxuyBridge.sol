@@ -6,15 +6,15 @@ import "./interfaces/IBridge.sol";
 import "./interfaces/IBridgeAdapter.sol";
 
 contract UxuyBridge is IBridge, BrokerBase {
-    function supportSwap(bytes4 providerID) external view returns (bool) {
-        return _getAdapter(providerID).supportSwap();
+    function supportSwap(address provider) external pure returns (bool) {
+        return _getAdapter(provider).supportSwap();
     }
 
     function bridge(
         BridgeParams calldata params
     ) external whenNotPaused onlyAllowedCaller noDelegateCall returns (uint256, uint256) {
         return
-            _getAdapter(params.providerID).bridge(
+            _getAdapter(params.provider).bridge(
                 IBridgeAdapter.BridgeParams({
                     tokenIn: params.tokenIn,
                     chainIDOut: params.chainIDOut,
@@ -27,8 +27,7 @@ contract UxuyBridge is IBridge, BrokerBase {
             );
     }
 
-    function _getAdapter(bytes4 providerID) internal view returns (IBridgeAdapter) {
-        address provider = _getProvider(providerID);
+    function _getAdapter(address provider) internal pure returns (IBridgeAdapter) {
         require(provider != address(0), "UxuyBridge: provider not found");
         return IBridgeAdapter(provider);
     }

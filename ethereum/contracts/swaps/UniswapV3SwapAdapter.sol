@@ -13,21 +13,17 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
     using SafeERC20 for IERC20;
     using Path for address[];
 
-    IQuoter private immutable _quoter;
-    ISwapRouter private immutable _router;
-    uint24[] private _feeRates;
-
-    constructor(address quoter, address router, uint24[] memory feeRates) {
-        _quoter = IQuoter(quoter);
-        _router = ISwapRouter(router);
-        _feeRates = feeRates;
-        _setWrappedNativeAsset(_router.WETH9());
+    constructor(address wrappedAsset) {
+        _setWrappedNativeAsset(wrappedAsset);
     }
 
     function getAmountIn(
+        address router,
         address[] memory path,
-        uint256 amountOut
-    ) external override returns (uint256 amountIn, bytes memory swapData) {
+        uint256 amountOut,
+        uint24[] memory feeRates
+    ) external virtual returns (uint256 amountIn, bytes memory swapData) {
+        IQuoter _quoter = IQuoter(router);
         _convertPath(path);
         uint24[] memory bestFees = new uint24[](path.length - 1);
         address tokenOut = path[path.length - 1];
@@ -35,13 +31,13 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
             uint24 bestFee = 0;
             address tokenIn = path[i];
             amountIn = 0;
-            for (uint256 j = 0; j < _feeRates.length; j++) {
-                try _quoter.quoteExactOutputSingle(tokenIn, tokenOut, _feeRates[j], amountOut, 0) returns (
+            for (uint256 j = 0; j < feeRates.length; j++) {
+                try _quoter.quoteExactOutputSingle(tokenIn, tokenOut, feeRates[j], amountOut, 0) returns (
                     uint256 amount
                 ) {
                     if (amount > 0 && (amountIn == 0 || amount < amountIn)) {
                         amountIn = amount;
-                        bestFee = _feeRates[j];
+                        bestFee = feeRates[j];
                     }
                 } catch {}
             }
@@ -56,9 +52,12 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
     }
 
     function getAmountOut(
+        address router,
         address[] memory path,
-        uint256 amountIn
-    ) external override returns (uint256 amountOut, bytes memory swapData) {
+        uint256 amountIn,
+        uint24[] memory feeRates
+    ) external virtual returns (uint256 amountOut, bytes memory swapData) {
+        IQuoter _quoter = IQuoter(router);
         _convertPath(path);
         uint24[] memory bestFees = new uint24[](path.length - 1);
         address tokenIn = path[0];
@@ -66,13 +65,13 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
             uint24 bestFee = 0;
             address tokenOut = path[i];
             amountOut = 0;
-            for (uint256 j = 0; j < _feeRates.length; j++) {
-                try _quoter.quoteExactInputSingle(tokenIn, tokenOut, _feeRates[j], amountIn, 0) returns (
+            for (uint256 j = 0; j < feeRates.length; j++) {
+                try _quoter.quoteExactInputSingle(tokenIn, tokenOut, feeRates[j], amountIn, 0) returns (
                     uint256 amount
                 ) {
                     if (amount > amountOut) {
                         amountOut = amount;
-                        bestFee = _feeRates[j];
+                        bestFee = feeRates[j];
                     }
                 } catch {}
             }
@@ -98,7 +97,7 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
         if (tokenIn.isNativeAsset()) {
             value = params.amountIn;
         } else {
-            IERC20(tokenIn).safeApproveToMax(address(_router), params.amountIn);
+            IERC20(tokenIn).safeApproveToMax(params.router, params.amountIn);
         }
         address[] memory swapPath = _convertPath(params.path);
         address recipient = params.recipient;
@@ -107,7 +106,7 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
         }
 
         if (swapPath.length == 2) {
-            amountOut = _router.exactInputSingle{value: value}(
+            amountOut = ISwapRouter(params.router).exactInputSingle{value: value}(
                 ISwapRouter.ExactInputSingleParams({
                     tokenIn: swapPath[0],
                     tokenOut: swapPath[1],
@@ -120,7 +119,7 @@ contract UniswapV3SwapAdapter is SwapAdapterBase {
                 })
             );
         } else {
-            amountOut = _router.exactInput{value: value}(
+            amountOut = ISwapRouter(params.router).exactInput{value: value}(
                 ISwapRouter.ExactInputParams({
                     path: swapPath.buildPath(poolFee),
                     recipient: recipient,
